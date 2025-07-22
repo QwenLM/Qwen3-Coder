@@ -59,7 +59,8 @@ Detailed performance and introduction are shown in this <a href="https://qwenlm.
 > This model supports only non-thinking mode and does not generate ``<think></think>`` blocks in its output. Meanwhile, specifying `enable_thinking=False` is no longer required.**
 >
 ### 👉🏻 Chat with Qwen3-Coder-480B-A35B-Instruct
-You can just write several lines of code with `transformers` to chat with Qwen3-Coder-480B-A35B-Instruct. Essentially, we build the tokenizer and the model with `from_pretrained` method, and we use generate method to perform chatting with the help of chat template provided by the tokenizer. Below is an example of how to chat with **Qwen3-Coder-480B-A35B-Instruct**:
+
+You can just write several lines of code with `transformers` and SGLang to chat with Qwen3-Coder-480B-A35B-Instruct. Essentially, for `transformers`, we build the tokenizer and the model with `from_pretrained` method, and we use generate method to perform chatting with the help of chat template provided by the tokenizer. Below is an example of how to chat with **Qwen3-Coder-480B-A35B-Instruct**:
 
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -98,6 +99,29 @@ The `apply_chat_template()` function is used to convert the messages into a form
 The `add_generation_prompt` argument is used to add a generation prompt, which refers to `<|im_start|>assistant\n` to the input. Notably, we apply ChatML template for chat models following our previous practice.
 The `max_new_tokens` argument is used to set the maximum length of the response. The `tokenizer.batch_decode()` function is used to decode the response. In terms of the input, the above messages is an example to show how to format your dialog history and system prompt.
 You can use the other size of instruct model in the same way.
+
+To serve Qwen3 model on 4/8xH100/200 GPUs with SGLang:
+
+For the BF16 model:
+
+```bash
+python3 -m sglang.launch_server --model-path Qwen/Qwen3-Coder-480B-A35B --tp 8 --tool-call-parser qwen3
+```
+
+For FP8 model:
+
+```bash
+python3 -m sglang.launch_server --model-path Qwen/Qwen3-Coder-480B-A35B-FP8 --tp 4 --tool-call-parser qwen3
+```
+
+or
+
+```bash
+python3 -m sglang.launch_server --model-path Qwen/Qwen3-Coder-480B-A35B-FP8 --tp 8 --enable-ep-moe --tool-call-parser qwen3
+```
+
+* **FP8 models** : With --tp 8 Loading failure is expected; switch to expert-parallel mode using ```--enable-ep-moe```.
+* **Tool call**: Add ```--tool-call-parser qwen3``` for tool call parser.
 
 
 #### Fill in the middle with Qwen3-Coder-480B-A35B-Instruct
