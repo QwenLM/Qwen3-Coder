@@ -26,7 +26,7 @@ Today, we're announcing Qwen3-Coder, our most agentic code model to date. **Qwen
 
 📚 **Long-context Capabilities**: with native support for **256K** tokens, extendable up to **1M** tokens using Yarn, optimized for repository-scale understanding;
 
-🛠 **Agentic Coding**: supporting for most platfrom such as **Qwen Code**, **CLINE**, featuring a specially designed function call format;
+🛠 **Agentic Coding**: supporting for most platform such as **Qwen Code**, **CLINE**, featuring a specially designed function call format;
 
 ## Basic information
 
