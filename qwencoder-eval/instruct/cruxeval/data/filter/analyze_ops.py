@@ -157,7 +157,7 @@ def annotate(code, timeout=2, verbose=0):
     try:
         sys.settrace(lambda frame, event, arg: filter_trace(frame, event, arg, verbose=verbose))
         scope = {} # specifying scope is necessary for nested functions 
-        exec(compile(code, '<string>', 'exec', optimize=0), scope, scope)
+        ast.literal_eval(compile(code, '<string>', 'exec', optimize=0), scope, scope)
     except TimeoutException as e:
         sys.settrace(None)
         bad['TIMED_OUT'] += 1
