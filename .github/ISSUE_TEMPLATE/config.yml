@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discord Community
+    url: https://discord.gg/CV4E9rpNSD
+    about: For general discussions and community support
+  - name: Documentation
+    url: https://qwen.readthedocs.io/
+    about: Check our documentation for detailed guides
+  - name: Blog
+    url: https://qwenlm.github.io/blog/qwen3-coder
+    about: Read our blog post for detailed information about Qwen3-Coder
