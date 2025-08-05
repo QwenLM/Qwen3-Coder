@@ -83,7 +83,7 @@ tensorboardX==2.6.2.2
 termcolor==2.4.0
 tokenizers==0.21.0
 tqdm==4.66.5
-transformers==4.47.1
+transformers==4.51.0
 triton==3.0.0
 trl==0.9.6
 typeguard==4.4.1
