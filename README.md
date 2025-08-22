@@ -14,6 +14,18 @@
 </a>&nbsp&nbsp | &nbsp&nbsp 🌍 <a href="https://huggingface.co/spaces/Qwen/Qwen3-Coder-WebDev">WebDev</a>&nbsp&nbsp | &nbsp&nbsp💬 <a href="https://github.com/QwenLM/Qwen/blob/main/assets/wechat.png">WeChat (微信)</a>&nbsp&nbsp | &nbsp&nbsp🫨 <a href="https://discord.gg/CV4E9rpNSD"> Discord</a>&nbsp&nbsp | &nbsp&nbsp 📄 <a href="https://arxiv.org/abs/2505.09388">Arxiv</a>&nbsp&nbsp | &nbsp&nbsp 👽 <a href="https://github.com/QwenLM/qwen-code">Qwen Code</a>
 </p>
 
+<p align="center">
+    <!-- Keep these links. Translations will automatically update with the README. -->
+    <a href="https://zdoc.app/de/QwenLM/Qwen3-Coder">Deutsch</a> | 
+    <a href="https://zdoc.app/es/QwenLM/Qwen3-Coder">Español</a> | 
+    <a href="https://zdoc.app/fr/QwenLM/Qwen3-Coder">français</a> | 
+    <a href="https://zdoc.app/ja/QwenLM/Qwen3-Coder">日本語</a> | 
+    <a href="https://zdoc.app/ko/QwenLM/Qwen3-Coder">한국어</a> | 
+    <a href="https://zdoc.app/pt/QwenLM/Qwen3-Coder">Português</a> | 
+    <a href="https://zdoc.app/ru/QwenLM/Qwen3-Coder">Русский</a> | 
+    <a href="https://zdoc.app/zh/QwenLM/Qwen3-Coder">中文</a>
+</p>
+
 Visit our Hugging Face or ModelScope organization (click links above), search checkpoints with names starting with `Qwen3-Coder-`, and you will find all you need! Enjoy!
 
 # Latest News
