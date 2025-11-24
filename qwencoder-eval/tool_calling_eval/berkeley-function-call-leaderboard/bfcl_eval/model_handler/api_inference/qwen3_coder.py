@@ -2,7 +2,9 @@ import json
 import os
 import time
 
-from bfcl_eval.model_handler.api_inference.openai import OpenAIHandler
+from bfcl_eval.model_handler.api_inference.openai_completion import (
+    OpenAICompletionsHandler as OpenAIHandler,
+)
 from bfcl_eval.model_handler.model_style import ModelStyle
 from bfcl_eval.model_handler.utils import retry_with_backoff
 from openai import OpenAI, RateLimitError
@@ -21,7 +23,7 @@ error_list = [
 class Qwen3CoderHandler(OpenAIHandler):
     def __init__(self, model_name, temperature) -> None:
         super().__init__(model_name, temperature)
-        self.model_style = ModelStyle.OpenAI
+        self.model_style = ModelStyle.OpenAI_Completions
         self.model_name = model_name
         base_url, api_key = os.getenv("OPENAI_API_BASE"), os.getenv("OPENAI_API_KEY")
         litellm.api_base = base_url
