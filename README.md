@@ -53,7 +53,7 @@
 ## Instalation guide
 
 * hf-download Qwen/Qwen3-Coder-Next-FP8
-* replace modeling_quen3_next.py in transformers/models/qwen3_next (TODO: find better way)
+* replace modeling_quen3_next.py in transformers/models/qwen3_next (TODO: find better way) (transformers-5.1.0)
 * run: python extract_mlp.py (TODO: rewrite to use original safetensors)
 * run: python coder_80b_next_chat.py
 
