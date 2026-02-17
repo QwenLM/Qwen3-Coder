@@ -57,7 +57,7 @@
 * run: python extract_mlp.py (TODO: rewrite to use original safetensors)
 * run: python coder_80b_next_chat.py
 
-* As usual making impossible, runnig large models on low vram check my other repos LTX-2, HeartMula, Wan2.2, GPT-OSS-20B ...
+* As usual making impossible, runnig large models on low vram check my other repos <a href="https://github.com/nalexand/LTX-2-OPTIMIZED">LTX-2</a>, <a href="https://github.com/nalexand/HeartMula-OPTIMIZED-8GB">HeartMula</a>, <a href="https://github.com/nalexand/ACE-Step-1.5-OPTIMIZED">ACE-STEP 1.5</a> <a href="https://github.com/nalexand/Wan2.2">Wan2.2</a>, <a href="https://github.com/nalexand/gpt-oss">GPT-OSS-20B</a> ...
 
 ## Cache warmup test:
 ```bash
