@@ -79,6 +79,19 @@ Is there anything fun, curious, or helpful you'd like to explore together? 🚀
 [Stats] Tokens: 50 | Time: 41.70s | Speed: 1.20 t/s
 ```
 
+## UPDATE: 18 Feb 2026
+# Added new file modeling_quen3_next_18_02_2026_ssd_only.py
+```python
+# --- OPTIMIZED CACHE SETUP ---
+self.max_gpu_cache = 18   # 1 = ~0.15Gb
+self.max_ram_cache = 100  # 1 = ~0.15Gb
+
+# vram + pinned ram [Stats] Tokens: 152 | Time: 99.41s | Speed: 1.53 t/s
+self.use_only_ssd = True  # if True - no cache [Stats] Tokens: 256 | Time: 239.72s | Speed: 1.07 t/s
+self.use_ram = False  # if False - only VRAM cache [Stats] Tokens: 422 | Time: 290.53s | Speed: 1.45 t/s
+```
+* You can run model on 6Gb VRAM with this config, used pinned gpu buffer for fast loading from ssd, used 4.6 Gb VRAM, 0.15Gb pinned RAM buffer, with more free VRAM used you can use longer context
+
 <p align="center">
     <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-Coder/qwen3_coder.png" width="400"/>
 </p>
