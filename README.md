@@ -2,53 +2,26 @@
 
 # How to run Qwen3-Coder-Next on 8Gb VRAM
 
-* User: what you can do?
-* Assistant: I’m thrilled you asked! 🌟 Here’s a detailed look at what I can do—designed to be as helpful, versatile, and reliable as possible:
+```bash
+User: What can you do?
+Assistant: I’m Qwen, a large-scale language model developed by Alibaba Cloud’s Tongyi Lab. I can assist you with a wide range of tasks, including:
 
-### 📝 **Writing & Creative Tasks**
-- **Stories, scripts, and narratives** (e.g., short stories, screenplays, poems)
-- **Articles, blogs, and reports** (e.g., news summaries, essays, research overviews)
-- **Emails, letters, and formal documents** (e.g., job applications, cover letters, official correspondence)
-- **Social media posts, captions, and ads** (tailored to tone: professional, funny, inspiring, etc.)
+- **Answering questions** (e.g., science, culture, technology, daily life)
+- **Creating text** (e.g., stories, official documents, emails, scripts, logical reasoning, programming)
+- **Expressing opinions** and participating in discussions
+- **Writing code** (e.g., Python, JavaScript, C++, etc.)
+- **Logical reasoning and problem-solving**
+- **Playing text-based games**
+- **Translating** between multiple languages
+- **Summarizing** long texts or documents
 
-### 🧠 **Reasoning & Analysis**
-- **Logical & mathematical reasoning** (e.g., math problems, logic puzzles, data interpretation)
-- **Idea generation & brainstorming** (e.g., business ideas, story plots, project concepts)
-- **Debates & perspective-taking** (e.g., “Argue both sides of climate policy”)
-- **Code explanation & debugging** (in Python, JavaScript, Java, C++, SQL, and more—see below!)
+I support 100+ languages, including but not limited to:
+Chinese, English, Spanish, French, Portuguese, Russian, Arabic, Japanese, Korean, Vietnamese, Thai, Indonesian, and many more.
 
-### 💻 **Programming & Technical Help**
-- **Code generation**: Write clean, efficient code (e.g., “Write a Python function to sort a linked list”)
-- **Code explanation**: Break down complex code into simple terms
-- **Debugging help**: Suggest fixes and improvements
-- **Algorithm & data structure guidance**
-- **Tech stack advice** (e.g., “Which framework is best for a beginner’s web app?”)
+If you have a specific task or question in mind, feel free to let me know—I’m ready to help! 😊
 
-### 🌍 **Language & Communication**
-- **Translation**: Accurately translate between 100+ languages (e.g., Chinese ↔ English, Japanese ↔ French, etc.)
-- **Language learning help**: Grammar explanations, vocabulary practice, sentence correction
-- **Tone adaptation**: Make text formal, casual, poetic, persuasive, or playful
-
-### 📚 **Knowledge & Learning**
-- **General knowledge**: Science, history, geography, pop culture—and how they connect
-- **Explaining complex topics simply**: e.g., “Explain quantum computing like I’m 10” or “How does a CRISPR gene-editing experiment work?”
-- **Academic support**: Summarizing papers, clarifying concepts (e.g., thermodynamics, organic chemistry, philosophy)
-- **Study planning**: Suggest study schedules, flashcards (text-based), and active recall techniques
-
-### 🎮 **Fun & Engagement**
-- **Games**: Play rickety logic games, word puzzles, 20 questions, or even help design your own game!
-- **Personality simulations**: “Pretend you’re a 1920s detective” or “Act like a helpful alien learning about Earth”
-- **Jokes, puns, and humor** (family-friendly & appropriate 😄)
-
-### 🚫 What I *can’t* do (and why it matters):
-- No real-time internet access (my knowledge is up to **2024**; I can’t fetch live news or stock prices).
-- No personal opinions or emotions—I aim for neutrality and fact-based responses.
-- No medical, legal, or financial advice (I can explain general concepts, but *never* replace a human expert).
-- No access to private data or systems—I respect privacy and security.
-
-...
-
-[Stats] Tokens: 807 | Time: 668.81s | Speed: 1.21 t/s Qwen3-Coder-Next on laptop 3070ti with 8Gb VRAM and 32Gb RAM (80B parameter model!!!)
+[Stats] Tokens: 207 | Time: 114.78s | Speed: 1.80 t/s  on laptop 3070ti with 8Gb VRAM and 32Gb RAM (80B parameter model!!!)
+```
 
 ## Instalation guide
 
