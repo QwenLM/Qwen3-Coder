@@ -4,7 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStream
 
 # --- CONFIGURATION ---
 model_name = "Qwen/Qwen3-Coder-Next-FP8"
-offload_path = r"C:\nginx\html\src\Qwen3-Coder-OPTIMIZED\offload" #TODO: set your path
+offload_path = r"c:\Users\koshe\.cache\huggingface\hub\models--Qwen--Qwen3-Coder-Next-FP8\snapshots\da6e2ed27304dd39abadd9c82ef50e8de67bdd4c" #TODO: set your path
 
 # --- 1. DEVICE MAP SETUP ---
 device_map = {}
@@ -33,8 +33,15 @@ for i in range(48):
     device_map[f"{layer_prefix}.linear_attn.norm.weight"] = "cuda"
 
     # MLP / Experts -> Disk
-    device_map[f"{layer_prefix}.mlp.experts.gate_up_proj"] = "disk"
-    device_map[f"{layer_prefix}.mlp.experts.down_proj"] = "disk"
+    device_map[f"{layer_prefix}.mlp.experts.gate_up_proj"] = "meta"
+    device_map[f"{layer_prefix}.mlp.experts.down_proj"] = "meta"
+
+    # 2. MLP / Experts -> META
+    # We map them to "meta" so HuggingFace skips loading them entirely (0 VRAM/RAM).
+    # They will be discarded anyway when we replace them with our custom Qwen3NextExperts.
+    device_map[f"{layer_prefix}.mlp.experts.gate_proj"] = "meta"
+    device_map[f"{layer_prefix}.mlp.experts.up_proj"] = "meta"
+    device_map[f"{layer_prefix}.mlp.experts.down_proj"] = "meta"
 
     device_map[f"{layer_prefix}.mlp.gate.weight"] = "cuda"
     device_map[f"{layer_prefix}.mlp.shared_expert.gate_proj.weight"] = "cuda"
