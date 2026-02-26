@@ -523,89 +523,6 @@ def torch_chunk_gated_delta_rule(
     core_attn_out = core_attn_out.transpose(1, 2).contiguous().to(initial_dtype)
     return core_attn_out, last_recurrent_state
 
-def l2norm_op(x, dim=-1, eps=1e-6):
-    return x / (x.norm(p=2, dim=dim, keepdim=True) + eps)
-
-@torch.compile(dynamic=True, mode="reduce-overhead")
-def torch_chunk_gated_delta_rule_op(
-    query,
-    key,
-    value,
-    g,
-    beta,
-    chunk_size=64,
-    initial_state=None,
-    output_final_state=False,
-    use_qk_l2norm_in_kernel=False,
-):
-    initial_dtype = query.dtype
-    if use_qk_l2norm_in_kernel:
-        query = l2norm(query, dim=-1, eps=1e-6)
-        key = l2norm(key, dim=-1, eps=1e-6)
-    query, key, value, beta, g = [
-        x.transpose(1, 2).contiguous().to(torch.float32) for x in (query, key, value, beta, g)
-    ]
-
-    batch_size, num_heads, sequence_length, k_head_dim = key.shape
-    v_head_dim = value.shape[-1]
-    pad_size = (chunk_size - sequence_length % chunk_size) % chunk_size
-    query = F.pad(query, (0, 0, 0, pad_size))
-    key = F.pad(key, (0, 0, 0, pad_size))
-    value = F.pad(value, (0, 0, 0, pad_size))
-    beta = F.pad(beta, (0, pad_size))
-    g = F.pad(g, (0, pad_size))
-    total_sequence_length = sequence_length + pad_size
-    scale = 1 / (query.shape[-1] ** 0.5)
-    query = query * scale
-
-    v_beta = value * beta.unsqueeze(-1)
-    k_beta = key * beta.unsqueeze(-1)
-    # reshape to chunks
-    query, key, value, k_beta, v_beta = [
-        x.reshape(x.shape[0], x.shape[1], -1, chunk_size, x.shape[-1]) for x in (query, key, value, k_beta, v_beta)
-    ]
-    g = g.reshape(g.shape[0], g.shape[1], -1, chunk_size)
-    mask = torch.triu(torch.ones(chunk_size, chunk_size, dtype=torch.bool, device=query.device), diagonal=0)
-    mask_upper = torch.triu(torch.ones(chunk_size, chunk_size, dtype=torch.bool, device=query.device), diagonal=1)
-
-    # chunk decay
-    g = g.cumsum(dim=-1)
-    decay_mask = ((g.unsqueeze(-1) - g.unsqueeze(-2)).tril().exp().float()).tril()
-    attn = -((k_beta @ key.transpose(-1, -2)) * decay_mask).masked_fill(mask, 0)
-    for i in range(1, chunk_size):
-        row = attn[..., i, :i].clone()
-        sub = attn[..., :i, :i].clone()
-        attn[..., i, :i] = row + (row.unsqueeze(-1) * sub).sum(-2)
-    attn = attn + torch.eye(chunk_size, dtype=attn.dtype, device=attn.device)
-    value = attn @ v_beta
-    k_cumdecay = attn @ (k_beta * g.exp().unsqueeze(-1))
-    last_recurrent_state = (
-        torch.zeros(batch_size, num_heads, k_head_dim, v_head_dim, dtype=torch.float32, device=value.device)
-        if initial_state is None
-        else initial_state.to(torch.float32)
-    )
-    core_attn_out = torch.zeros_like(value)
-
-    # for each chunk
-    for i in range(0, total_sequence_length // chunk_size):
-        q_i, k_i, v_i = query[:, :, i], key[:, :, i], value[:, :, i]
-        attn = (q_i @ k_i.transpose(-1, -2) * decay_mask[:, :, i]).masked_fill_(mask_upper, 0)
-        v_prime = (k_cumdecay[:, :, i]) @ last_recurrent_state
-        v_new = v_i - v_prime
-        attn_inter = (q_i * g[:, :, i, :, None].exp()) @ last_recurrent_state
-        core_attn_out[:, :, i] = attn_inter + attn @ v_new
-        last_recurrent_state = (
-            last_recurrent_state * g[:, :, i, -1, None, None].exp()
-            + (k_i * (g[:, :, i, -1, None] - g[:, :, i]).exp()[..., None]).transpose(-1, -2) @ v_new
-        )
-
-    if not output_final_state:
-        last_recurrent_state = None
-    core_attn_out = core_attn_out.reshape(core_attn_out.shape[0], core_attn_out.shape[1], -1, core_attn_out.shape[-1])
-    core_attn_out = core_attn_out[:, :, :sequence_length]
-    core_attn_out = core_attn_out.transpose(1, 2).contiguous().to(initial_dtype)
-    return core_attn_out, last_recurrent_state
-
 
 def torch_recurrent_gated_delta_rule(
     query, key, value, g, beta, initial_state, output_final_state, use_qk_l2norm_in_kernel=False
@@ -880,241 +797,276 @@ class Qwen3NextMLP(nn.Module):
 
 
 import os
+import json
 import torch
 import torch.nn as nn
-import json
+import torch.nn.functional as F
 from safetensors import safe_open
-from collections import OrderedDict
 
-@use_experts_implementation
+
+class DummyProj(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.weight = nn.Parameter(torch.empty(0), requires_grad=False)
+
+
 class Qwen3NextExperts(nn.Module):
     def __init__(self, config, layer_idx=0, offload_folder=None):
         super().__init__()
-
         self.num_experts = config.num_experts
-        self.act_fn = ACT2FN[config.hidden_act]
+
+        try:
+            from transformers.activations import ACT2FN
+            self.act_fn = ACT2FN[config.hidden_act]
+        except (ImportError, NameError, KeyError):
+            self.act_fn = F.silu
+
+        self.layer_idx = layer_idx
+        self.offload_folder = offload_folder
+        self.view_dtype = torch.float8_e4m3fn
+
+        self.gate_up_proj = DummyProj()
+        self.down_proj = DummyProj()
+        self.gate_proj = DummyProj()
+        self.up_proj = DummyProj()
+
+        self.max_gpu_cache = 18
+        self.max_ram_cache = 80
+        self.use_only_ssd = False
+        self.use_ram = True
+
+        self.usage_stats = [0] * self.num_experts
+
+        self.scale_gu_cache = {}
+        self.scale_d_cache = {}
+
+        self.expert_io_map = {}
 
         if offload_folder:
-            self.stats = {'layer_idx': layer_idx, 'used_idx': {}, 'cache_hit': 0, 'total_hit': 0, 'cache_hit_used': 0}
+            self._initialize_fast_io()
 
-            # TODO: rewrite to load from original model files to save disk space
-            self.gate_up_key = f"model.layers.{layer_idx}.mlp.experts.gate_up_proj"
-            self.down_key = f"model.layers.{layer_idx}.mlp.experts.down_proj"
+    def _initialize_fast_io(self):
+        index_path = os.path.join(self.offload_folder, "model.safetensors.index.json")
+        with open(index_path, "r") as f:
+            weight_map = json.load(f)["weight_map"]
 
-            self.gate_up_path = os.path.join(offload_folder, f"{self.gate_up_key}.safetensors")
-            self.down_path = os.path.join(offload_folder, f"{self.down_key}.safetensors")
+        layer_prefix = f"model.layers.{self.layer_idx}.mlp.experts"
+        files_needed = set(fname for key, fname in weight_map.items() if key.startswith(layer_prefix))
 
-            self.gate_up_scale = self._load_scale_tensor(self.gate_up_path, f"{self.gate_up_key}_scale_inv", device="cuda")
-            self.down_scale = self._load_scale_tensor(self.down_path, f"{self.down_key}_scale_inv", device="cuda")
+        header_cache = {}
+        scale_g_temp = {}
+        scale_u_temp = {}
 
-            self.gu_scale_rows_per_expert = self.gate_up_scale.shape[0] // self.num_experts
-            self.d_scale_rows_per_expert = self.down_scale.shape[0] // self.num_experts
+        for fname in files_needed:
+            fpath = os.path.join(self.offload_folder, fname)
 
-            self.gate_up_meta = self._read_header(self.gate_up_path, self.gate_up_key)
-            self.down_meta = self._read_header(self.down_path, self.down_key)
+            with open(fpath, "rb") as f:
+                h_len = int.from_bytes(f.read(8), "little")
+                header = json.loads(f.read(h_len).decode("utf-8"))
+                header_cache[fname] = {"header": header, "data_start": 8 + h_len}
 
-            self.bytes_per_element = 1
-            self.view_dtype = torch.float8_e4m3fn
+            with safe_open(fpath, framework="pt", device="cuda") as sf:
+                for key in sf.keys():
+                    if key.startswith(layer_prefix) and "scale" in key:
+                        parts = key.split('.')
+                        exp_idx, proj = int(parts[5]), parts[6]
 
-            gu_shape = self.gate_up_meta['shape']
-            if len(gu_shape) == 2:
-                rows_per_expert = gu_shape[0] // self.num_experts
-                self.gate_up_weight_shape = (rows_per_expert, gu_shape[1])
-            else:
-                self.gate_up_weight_shape = tuple(gu_shape[1:])
+                        scale = sf.get_tensor(key).to(torch.bfloat16)
+                        if scale.ndim == 0:
+                            scale = scale.view(1, 1)
+                        elif scale.ndim == 1:
+                            scale = scale.view(-1, 1)
 
-            d_shape = self.down_meta['shape']
-            if len(d_shape) == 2:
-                rows_per_expert = d_shape[0] // self.num_experts
-                self.down_weight_shape = (rows_per_expert, d_shape[1])
-            else:
-                self.down_weight_shape = tuple(d_shape[1:])
+                        if proj == "gate_proj":
+                            scale_g_temp[exp_idx] = scale
+                        elif proj == "up_proj":
+                            scale_u_temp[exp_idx] = scale
+                        elif proj == "down_proj":
+                            self.scale_d_cache[exp_idx] = scale
 
-            self.gate_up_bytes_per_expert = (self.gate_up_weight_shape[0] * self.gate_up_weight_shape[
-                1]) * self.bytes_per_element
-            self.down_bytes_per_expert = (self.down_weight_shape[0] * self.down_weight_shape[1]) * self.bytes_per_element
+        for exp_idx in range(self.num_experts):
+            if exp_idx in scale_g_temp and exp_idx in scale_u_temp:
+                self.scale_gu_cache[exp_idx] = torch.cat([scale_g_temp[exp_idx], scale_u_temp[exp_idx]], dim=0)
 
-            self.gate_up_start = self.gate_up_meta['data_start']
-            self.down_start = self.down_meta['data_start']
+        self.g_bytes = 0
+        self.d_bytes = 0
 
-            self.cache_up = OrderedDict()
-            self.cache_down = OrderedDict()
-            self.cache_up2 = OrderedDict()
-            self.cache_down2 = OrderedDict()
+        for exp_idx in range(self.num_experts):
+            base_key = f"{layer_prefix}.{exp_idx}"
+            keys = {"gate": f"{base_key}.gate_proj.weight", "up": f"{base_key}.up_proj.weight",
+                    "down": f"{base_key}.down_proj.weight"}
 
-            self.max_gpu_cache = 18  # TODO: calculate based on free ram and context window size
-            self.max_ram_cache = 100 # TODO: calculate based on available pinable memory or use unpinned (slow)
+            self.expert_io_map[exp_idx] = {}
+            for proj_type, key in keys.items():
+                fname = weight_map.get(key)
+                if not fname: continue
 
-    def print_stats(self): # TODO: remove cache stats logick
-        print(f"Layer: {self.stats['layer_idx']} \n")
-        print(f"Total used idx: {len(self.stats['used_idx'])} \n")
-        print(f"Total hit: {self.stats['total_hit']} \n")
-        print(f"Cache hit: {self.stats['cache_hit']} \n")
-        print(f"Cache hit used: {self.stats['cache_hit_used']} \n")
-        print(f"Posible cache %: {self.stats['cache_hit'] / self.stats['total_hit'] * 100} \n")
-        print(f"Used cache %: {self.stats['cache_hit_used'] / self.stats['total_hit'] * 100} \n")
-        print(self.stats['used_idx'])
-        print("\n------------------------------------------\n")
+                meta = header_cache[fname]
+                tensor_meta = meta["header"][key]
+                start_offset = tensor_meta["data_offsets"][0]
+                byte_size = tensor_meta["data_offsets"][1] - start_offset
+                shape = tuple(tensor_meta["shape"])
 
-    def incr_stats(self, idx):
-        self.stats['total_hit'] += 1
-        if idx not in self.stats['used_idx']:
-            self.stats['used_idx'][idx] = 1
-        else:
-            self.stats['cache_hit'] += 1
-            self.stats['used_idx'][idx] += 1
+                self.expert_io_map[exp_idx][proj_type] = {
+                    "path": os.path.join(self.offload_folder, fname),
+                    "offset": meta["data_start"] + start_offset,
+                }
 
-    def real_cache_hit(self, idx):
-        self.stats['cache_hit_used'] += 1
+                if proj_type == "gate" and self.g_bytes == 0:
+                    self.g_bytes = byte_size
+                    self.gu_shape = (shape[0] * 2, shape[1])
+                elif proj_type == "down" and self.d_bytes == 0:
+                    self.d_bytes = byte_size
+                    self.d_shape = shape
 
-    def _load_scale_tensor(self, path, key, device):
-        try:
-            with safe_open(path, framework="pt", device=device) as f:
-                return f.get_tensor(key).to(torch.bfloat16)
-        except Exception as e:
-            print(f"Warning: Scale {key} not found in {path}. Using 1.0.")
-            # Fallback for BF16 models that don't need scaling
-            return torch.ones(self.num_experts, 1, 1, device=device, dtype=torch.bfloat16)
+        # =========================================================================
+        # PRE-ALLOCATED ZERO-FRAGMENTATION MEMORY POOLS & O(1) TRACKERS
+        # =========================================================================
+        self.gu_elements = 2 * self.g_bytes
+        self.total_bytes = self.gu_elements + self.d_bytes
 
-    def _read_header(self, path, key):
-        with open(path, "rb") as f:
-            header_len = int.from_bytes(f.read(8), "little")
-            header = json.loads(f.read(header_len).decode("utf-8"))
-            if key not in header: raise KeyError(f"Key {key} not found")
-            meta = header[key]
-            meta['data_start'] = 8 + header_len + meta['data_offsets'][0]
-            return meta
+        self.disk_landing_buf = torch.empty(self.total_bytes, dtype=torch.uint8, pin_memory=True)
+
+        # GPU Pool Tracking
+        self.gpu_pool = torch.empty((self.max_gpu_cache, self.total_bytes), dtype=torch.uint8, device="cuda")
+        self.gpu_expert_to_slot = {}
+        self.free_gpu_slots = list(range(self.max_gpu_cache))  # O(1) Pop/Append
+
+        # RAM Pool Tracking
+        if self.use_ram:
+            self.ram_pool = torch.empty((self.max_ram_cache, self.total_bytes), dtype=torch.uint8, pin_memory=True)
+            self.ram_expert_to_slot = {}
+            self.free_ram_slots = list(range(self.max_ram_cache))  # O(1) Pop/Append
 
     def _apply_block_scale(self, weight, scale):
-        if weight.dim() == 3:
-            batched = True
-            B = weight.size(0)
-            out_dim, in_dim = weight.shape[1], weight.shape[2]
-            s_rows, s_cols = scale.shape[1], scale.shape[2]
-        else:
-            batched = False
-            out_dim, in_dim = weight.shape
-            s_rows, s_cols = scale.shape
-        row_factor = out_dim // s_rows
-        col_factor = in_dim // s_cols
-        if batched:
-            weight_blocks = weight.view(B, row_factor, s_rows, col_factor, s_cols).permute(0, 1, 3, 2, 4)
-            weight_blocks.mul_(scale.unsqueeze(1).unsqueeze(1))
-            scaled = weight_blocks.permute(0, 1, 3, 2, 4).reshape(B, out_dim, in_dim).contiguous()
-        else:
-            weight_blocks = weight.view(row_factor, s_rows, col_factor, s_cols).permute(0, 2, 1, 3)
-            weight_blocks.mul_(scale)
-            scaled = weight_blocks.permute(0, 2, 1, 3).reshape(out_dim, in_dim).contiguous()
-        return scaled
+        out_dim, in_dim = weight.shape
+        s_rows, s_cols = scale.shape
+        w = weight.view(out_dim // s_rows, s_rows, in_dim // s_cols, s_cols).permute(0, 2, 1, 3)
+        w = w.to(torch.bfloat16).mul(scale)
+        return w.permute(0, 2, 1, 3).reshape(out_dim, in_dim).contiguous()
 
-    def _read_expert_slice_from_handle(self, file_handle, start_offset, expert_idx, byte_size, shape, device):
-        current_offset = start_offset + (expert_idx * byte_size)
-        file_handle.seek(current_offset)
-        buffer = file_handle.read(byte_size)
-        raw = torch.frombuffer(buffer, dtype=torch.uint8)
-        return raw.to(device, non_blocking=True).view(self.view_dtype).view(shape)
+    def _get_free_gpu_slot(self, active_set):
+        if self.free_gpu_slots:
+            return self.free_gpu_slots.pop()
 
-    # TODO: optimize cashing, can be better
+        candidates = [e for e in self.gpu_expert_to_slot if e not in active_set]
+        if not candidates:
+            candidates = self.gpu_expert_to_slot.keys()
+
+        victim_exp = min(candidates, key=self.usage_stats.__getitem__)
+        victim_slot = self.gpu_expert_to_slot.pop(victim_exp)
+
+        if self.use_ram:
+            ram_slot = self._get_free_ram_slot()
+            self.ram_pool[ram_slot].copy_(self.gpu_pool[victim_slot], non_blocking=True)
+            self.ram_expert_to_slot[victim_exp] = ram_slot
+
+        return victim_slot
+
+    def _get_free_ram_slot(self):
+        if self.free_ram_slots:
+            return self.free_ram_slots.pop()
+
+        victim_exp = min(self.ram_expert_to_slot, key=self.usage_stats.__getitem__)
+        return self.ram_expert_to_slot.pop(victim_exp)
+
+    def _load_from_disk_to_gpu(self, idx, target_gpu_slot, file_handles):
+        io_meta = self.expert_io_map[idx]
+
+        def get_file(path):
+            if path not in file_handles: file_handles[path] = open(path, "rb")
+            return file_handles[path]
+
+        view_1d = self.disk_landing_buf.numpy()
+
+        m_g = io_meta["gate"]
+        f_g = get_file(m_g["path"])
+        f_g.seek(m_g["offset"])
+        f_g.readinto(view_1d[0: self.g_bytes].data)
+
+        m_u = io_meta["up"]
+        f_u = get_file(m_u["path"])
+        f_u.seek(m_u["offset"])
+        f_u.readinto(view_1d[self.g_bytes: 2 * self.g_bytes].data)
+
+        m_d = io_meta["down"]
+        f_d = get_file(m_d["path"])
+        f_d.seek(m_d["offset"])
+        f_d.readinto(view_1d[2 * self.g_bytes:].data)
+
+        self.gpu_pool[target_gpu_slot].copy_(self.disk_landing_buf, non_blocking=True)
+
+    @torch.inference_mode() # [Stats] Tokens: 265 | Time: 151.09s | Speed: 1.75 t/s bfp16 on 3070ti laptop with 20Gb total ram+vram used
     def forward(self, hidden_states, top_k_index, top_k_weights):
+        orig_shape = hidden_states.shape
+        hidden_states = hidden_states.view(-1, orig_shape[-1])
         final_hidden_states = torch.zeros_like(hidden_states)
-        expert_mask = torch.nn.functional.one_hot(top_k_index, num_classes=self.num_experts).permute(2, 1, 0)
-        expert_hit = torch.any(expert_mask > 0, dim=(1, 2)).nonzero()
 
-        with open(self.gate_up_path, "rb") as f_gate, open(self.down_path, "rb") as f_down: # TODO: move to init
-            for expert_idx in expert_hit:
-                idx = expert_idx.item()
-                top_k_pos, token_idx = torch.where(expert_mask[idx])
+        flat_top_k_idx = top_k_index.view(-1)
+        flat_top_k_weights = top_k_weights.view(-1)
 
-                if len(token_idx) == 0:
-                    continue
+        token_indices_base = torch.arange(hidden_states.shape[0], device=hidden_states.device)
+        token_indices_base = token_indices_base.unsqueeze(1).expand(-1, top_k_index.shape[-1]).reshape(-1)
 
-                self.incr_stats(idx)
-                curr_state = hidden_states[token_idx]
+        sorted_expert_indices, sort_map = torch.sort(flat_top_k_idx)
+        sorted_token_indices = token_indices_base[sort_map]
+        sorted_weights = flat_top_k_weights[sort_map]
 
-                # -------------------------------------------------
-                # 1. TIER 1 CHECK: Is it already on GPU?
-                # -------------------------------------------------
-                if idx in self.cache_up:
-                    self.real_cache_hit(idx)
-                    w_gate_up_raw = self.cache_up[idx]
-                    w_down_raw = self.cache_down[idx]
+        expert_ids, counts = torch.unique_consecutive(sorted_expert_indices, return_counts=True)
+        offsets = torch.cat([torch.tensor([0], device=counts.device, dtype=torch.long), counts.cumsum(0)])
 
+        active_experts = expert_ids.tolist()
+        offsets_list = offsets.tolist()
+        active_set = set(active_experts)
+
+        for idx in active_experts:
+            self.usage_stats[idx] += 1
+
+        file_handles = {}
+        try:
+            for i, idx in enumerate(active_experts):
+                start, end = offsets_list[i], offsets_list[i + 1]
+                token_idx = sorted_token_indices[start:end]
+                weights = sorted_weights[start:end].unsqueeze(-1)
+
+                if idx in self.gpu_expert_to_slot:
+                    gpu_slot = self.gpu_expert_to_slot[idx]
                 else:
-                    # -------------------------------------------------
-                    # PREPARE TIER 1: Evict if full
-                    # -------------------------------------------------
-                    if len(self.cache_up) >= self.max_gpu_cache:
-                        # Evict LFU from GPU (Tier 1)
-                        min_key = min(self.cache_up, key=lambda k: self.stats.get(k, 0))
-                        v_gate_evicted = self.cache_up.pop(min_key)
-                        v_down_evicted = self.cache_down.pop(min_key)  # Assuming same keys
+                    gpu_slot = self._get_free_gpu_slot(active_set)
 
-                        # Check Tier 2 Space
-                        if len(self.cache_up2) >= self.max_ram_cache:
-                            # Evict LFU from RAM (Tier 2)
-                            min_key2 = min(self.cache_up2, key=lambda k: self.stats.get(k, 0))
-                            self.cache_up2.pop(min_key2)
-                            self.cache_down2.pop(min_key2)
-
-                        # Move GPU -> RAM (Tier 2) with pinned memory
-                        self.cache_up2[min_key] = v_gate_evicted.to("cpu", non_blocking=True).pin_memory()
-                        self.cache_down2[min_key] = v_down_evicted.to("cpu", non_blocking=True).pin_memory()
-
-                    # -------------------------------------------------
-                    # 2. TIER 2 CHECK: Is it in RAM?
-                    # -------------------------------------------------
-                    if idx in self.cache_up2:
-                        # Move RAM -> GPU (fast due to pinned)
-                        w_gate_up_raw = self.cache_up2.pop(idx).to("cuda", non_blocking=True)
-                        w_down_raw = self.cache_down2.pop(idx).to("cuda", non_blocking=True)
-
-                    # -------------------------------------------------
-                    # 3. TIER 3: Load from DISK
-                    # -------------------------------------------------
+                    if getattr(self, "use_ram", False) and idx in self.ram_expert_to_slot:
+                        ram_slot = self.ram_expert_to_slot.pop(idx)
+                        self.free_ram_slots.append(ram_slot)  # Instantly mark as free O(1)
+                        self.gpu_pool[gpu_slot].copy_(self.ram_pool[ram_slot], non_blocking=True)
                     else:
-                        w_gate_up_raw = self._read_expert_slice_from_handle(
-                            f_gate, self.gate_up_start, idx,
-                            self.gate_up_bytes_per_expert,
-                            self.gate_up_weight_shape, hidden_states.device
-                        )
-                        w_down_raw = self._read_expert_slice_from_handle(
-                            f_down, self.down_start, idx,
-                            self.down_bytes_per_expert,
-                            self.down_weight_shape, hidden_states.device
-                        )
+                        self._load_from_disk_to_gpu(idx, gpu_slot, file_handles)
 
-                    # Add to Tier 1 (GPU)
-                    self.cache_up[idx] = w_gate_up_raw
-                    self.cache_down[idx] = w_down_raw
+                    if self.use_only_ssd:
+                        # Prevent memory leaks if caching is disabled
+                        self.free_gpu_slots.append(gpu_slot)
+                    else:
+                        self.gpu_expert_to_slot[idx] = gpu_slot
 
-                # -------------------------------------------------
-                # COMPUTE (Dequant + Forward)
-                # -------------------------------------------------
-                w_gate_up_fp16 = w_gate_up_raw.to(torch.bfloat16)
-                w_down_fp16 = w_down_raw.to(torch.bfloat16)
+                gpu_1d = self.gpu_pool[gpu_slot].view(self.view_dtype)
+                w_gu_raw = gpu_1d[:self.gu_elements].view(self.gu_shape)
+                w_d_raw = gpu_1d[self.gu_elements:].view(self.d_shape)
 
-                s_gu_start = idx * self.gu_scale_rows_per_expert
-                scale_g = self.gate_up_scale[s_gu_start: s_gu_start + self.gu_scale_rows_per_expert]
-                s_d_start = idx * self.d_scale_rows_per_expert
-                scale_d = self.down_scale[s_d_start: s_d_start + self.d_scale_rows_per_expert]
+                w_gu = self._apply_block_scale(w_gu_raw, self.scale_gu_cache[idx])
+                w_down = self._apply_block_scale(w_d_raw, self.scale_d_cache[idx])
 
-                w_gate_up = self._apply_block_scale(w_gate_up_fp16, scale_g)
-                w_down = self._apply_block_scale(w_down_fp16, scale_d)
-
-                del w_gate_up_fp16, w_down_fp16
-
-                gate_up_out = nn.functional.linear(curr_state, w_gate_up)
+                curr_state = hidden_states[token_idx]
+                gate_up_out = F.linear(curr_state, w_gu)
                 gate, up = gate_up_out.chunk(2, dim=-1)
+
                 intermediate = self.act_fn(gate) * up
-                curr_out = nn.functional.linear(intermediate, w_down)
+                curr_out = F.linear(intermediate, w_down)
 
-                final_hidden_states.index_add_(
-                    0,
-                    token_idx,
-                    (curr_out * top_k_weights[token_idx, top_k_pos, None]).to(final_hidden_states.dtype)
-                )
+                final_hidden_states.index_add_(0, token_idx, (curr_out * weights).to(final_hidden_states.dtype))
 
-        return final_hidden_states
+        finally:
+            for f in file_handles.values(): f.close()
+
+        return final_hidden_states.view(orig_shape)
 
 
 class Qwen3NextTopKRouter(nn.Module):
@@ -1146,6 +1098,7 @@ class Qwen3NextSparseMoeBlock(nn.Module):
         self.shared_expert = Qwen3NextMLP(config, intermediate_size=config.shared_expert_intermediate_size)
         self.shared_expert_gate = torch.nn.Linear(config.hidden_size, 1, bias=False)
 
+    @torch.inference_mode()
     def forward(self, hidden_states: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         batch_size, sequence_length, hidden_dim = hidden_states.shape
         hidden_states_reshaped = hidden_states.view(-1, hidden_dim)
@@ -1256,9 +1209,8 @@ class Qwen3NextPreTrainedModel(PreTrainedModel):
         elif isinstance(module, Qwen3NextRMSNorm):
             init.zeros_(module.weight)
         elif isinstance(module, Qwen3NextExperts):
-            pass
-            #init.normal_(module.gate_up_proj, mean=0.0, std=self.config.initializer_range)
-            #init.normal_(module.down_proj, mean=0.0, std=self.config.initializer_range)
+            init.normal_(module.gate_up_proj, mean=0.0, std=self.config.initializer_range)
+            init.normal_(module.down_proj, mean=0.0, std=self.config.initializer_range)
         elif isinstance(module, Qwen3NextSparseMoeBlock):
             init.normal_(module.gate.weight, mean=0.0, std=self.config.initializer_range)
 
