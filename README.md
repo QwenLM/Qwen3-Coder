@@ -52,9 +52,9 @@
 
 ## Instalation guide
 
-* hf-download Qwen/Qwen3-Coder-Next-FP8 (https://huggingface.co/Qwen/Qwen3-Coder-Next-FP8/tree/main)
-* replace modeling_quen3_next.py in transformers/models/qwen3_next (TODO: find better way) (transformers-5.1.0)
-* run: python extract_mlp.py (TODO: rewrite to use original safetensors)
+* hf download Qwen/Qwen3-Coder-Next-FP8 (or manualy download from https://huggingface.co/Qwen/Qwen3-Coder-Next-FP8/tree/main)
+* pip install transformers==5.1.0
+* replace modeling_quen3_next.py in transformers/models/qwen3_next (full path: c:\Users\{user}\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\models\qwen3_next\)
 * run: python coder_80b_next_chat.py
 
 * As usual making impossible, runnig large models on low vram check my other repos <a href="https://github.com/nalexand/LTX-2-OPTIMIZED">LTX-2</a>, <a href="https://github.com/nalexand/HeartMula-OPTIMIZED-8GB">HeartMula</a>, <a href="https://github.com/nalexand/ACE-Step-1.5-OPTIMIZED">ACE-STEP 1.5</a> <a href="https://github.com/nalexand/Wan2.2">Wan2.2</a>, <a href="https://github.com/nalexand/gpt-oss">GPT-OSS-20B</a> ...
@@ -64,29 +64,25 @@
 User: hi
 Assistant: Hello! How can I help you today? 😊
 
-[Stats] Tokens: 11 | Time: 21.25s | Speed: 0.52 t/s
+[Stats] Tokens: 11 | Time: 16.96s | Speed: 0.65 t/s
 
 User: hi
-Assistant: Hi again! 👋 Everything okay? Need help with something—big or small? I'm here for it! 🌟
+Assistant: Hi again! 👋
+Everything okay? Or do you need help with something—like solving a puzzle, writing something, or just chatting? I'm here for it all! 🌟
 
-[Stats] Tokens: 26 | Time: 25.36s | Speed: 1.03 t/s
-
-User: all good
-Assistant: Awesome! I like that positive energy—thanks for sharing. 😊
-Is there anything fun, curious, or helpful you'd like to explore together? 🚀
-(Puns, facts, ideas, or just a chat—I’m game!)
-
-[Stats] Tokens: 50 | Time: 41.70s | Speed: 1.20 t/s
+[Stats] Tokens: 39 | Time: 22.80s | Speed: 1.71 t/s
 ```
 
-## UPDATE: 18 Feb 2026
-# Added new file modeling_quen3_next_18_02_2026_ssd_only.py
+## UPDATE: 26 Feb 2026
+* used original safetensors files
+* fixed memory fragmentation
+* increased speed 15% by cache oprimization and reducing PCE transfers
 ```python
 # --- OPTIMIZED CACHE SETUP ---
 self.max_gpu_cache = 18   # 1 = ~0.15Gb
-self.max_ram_cache = 100  # 1 = ~0.15Gb
+self.max_ram_cache = 80   # 1 = ~0.15Gb
 
-# vram + pinned ram [Stats] Tokens: 152 | Time: 99.41s | Speed: 1.53 t/s
+# vram + pinned ram [Stats] Tokens: 265 | Time: 151.09s | Speed: 1.75 t/s
 self.use_only_ssd = True  # if True - no cache [Stats] Tokens: 256 | Time: 239.72s | Speed: 1.07 t/s
 self.use_ram = False  # if False - only VRAM cache [Stats] Tokens: 422 | Time: 290.53s | Speed: 1.45 t/s
 ```
