@@ -77,7 +77,7 @@ def model_chat(query: Optional[str], history: Optional[History], system: str,
 
 
 
-def chiose_radio(radio, system):
+def choose_radio(radio, system):
     mark_ = gr.Markdown(value=f"<center><font size=8>Qwen2.5-Coder-{radio}-instruct👾</center>")
     chatbot = gr.Chatbot(label=f'Qwen2.5-Coder-{radio.lower()}-instruct')
     
@@ -119,7 +119,7 @@ def main():
                 
                 with gr.Row():
                     clear_history = gr.Button("🧹 Clear History")
-                    sumbit = gr.Button("🚀 Send")
+                    submit = gr.Button("🚀 Send")
                 
                 with gr.Accordion("Parameters", open=False):
                     temperature = gr.Slider(minimum=0.0, maximum=1.0, value=0.5, step=0.1, label="Temperature")
@@ -129,7 +129,7 @@ def main():
                 textbox.submit(model_chat,
                             inputs=[textbox, chatbot, system_state, temperature, top_p, max_length],
                             outputs=[textbox, chatbot, system_input])
-                sumbit.click(model_chat,
+                submit.click(model_chat,
                              inputs=[textbox, chatbot, system_state, temperature, top_p, max_length],
                              outputs=[textbox, chatbot, system_input],
                              concurrency_limit=100)
@@ -140,7 +140,7 @@ def main():
                                     inputs=[system_input],
                                     outputs=[system_state, system_input, chatbot])
         
-        radio.change(chiose_radio,
+        radio.change(choose_radio,
                      inputs=[radio, system_input],
                      outputs=[mark_, chatbot, system_state, system_input, textbox])
     
