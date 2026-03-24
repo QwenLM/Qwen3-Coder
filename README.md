@@ -1,5 +1,66 @@
 <a name="readme-top"></a>
 
+# How to run Qwen3-Coder-Next on 8Gb VRAM
+
+```bash
+User: What can you do?
+Assistant: I’m Qwen, a large-scale language model developed by Alibaba Cloud’s Tongyi Lab. I can assist you with a wide range of tasks, including:
+
+- **Answering questions** (e.g., science, culture, technology, daily life)
+- **Creating text** (e.g., stories, official documents, emails, scripts, logical reasoning, programming)
+- **Expressing opinions** and participating in discussions
+- **Writing code** (e.g., Python, JavaScript, C++, etc.)
+- **Logical reasoning and problem-solving**
+- **Playing text-based games**
+- **Translating** between multiple languages
+- **Summarizing** long texts or documents
+
+I support 100+ languages, including but not limited to:
+Chinese, English, Spanish, French, Portuguese, Russian, Arabic, Japanese, Korean, Vietnamese, Thai, Indonesian, and many more.
+
+If you have a specific task or question in mind, feel free to let me know—I’m ready to help! 😊
+
+[Stats] Tokens: 207 | Time: 114.78s | Speed: 1.80 t/s  on laptop 3070ti with 8Gb VRAM and 32Gb RAM (80B parameter model!!!)
+```
+
+## Instalation guide
+
+* hf download Qwen/Qwen3-Coder-Next-FP8 (or manualy download from https://huggingface.co/Qwen/Qwen3-Coder-Next-FP8/tree/main)
+* pip install transformers==5.1.0
+* replace modeling_quen3_next.py in transformers/models/qwen3_next (full path: c:\Users\{user}\AppData\Local\Programs\Python\Python312\Lib\site-packages\transformers\models\qwen3_next\)
+* run: python coder_80b_next_chat.py
+
+* As usual making impossible, runnig large models on low vram check my other repos <a href="https://github.com/nalexand/LTX-2-OPTIMIZED">LTX-2</a>, <a href="https://github.com/nalexand/HeartMula-OPTIMIZED-8GB">HeartMula</a>, <a href="https://github.com/nalexand/ACE-Step-1.5-OPTIMIZED">ACE-STEP 1.5</a> <a href="https://github.com/nalexand/Wan2.2">Wan2.2</a>, <a href="https://github.com/nalexand/gpt-oss">GPT-OSS-20B</a> ...
+
+## Cache warmup test:
+```bash
+User: hi
+Assistant: Hello! How can I help you today? 😊
+
+[Stats] Tokens: 11 | Time: 16.96s | Speed: 0.65 t/s
+
+User: hi
+Assistant: Hi again! 👋
+Everything okay? Or do you need help with something—like solving a puzzle, writing something, or just chatting? I'm here for it all! 🌟
+
+[Stats] Tokens: 39 | Time: 22.80s | Speed: 1.71 t/s
+```
+
+## UPDATE: 26 Feb 2026
+* used original safetensors files
+* fixed memory fragmentation
+* increased speed 15% by cache oprimization and reducing PCE transfers
+```python
+# --- OPTIMIZED CACHE SETUP ---
+self.max_gpu_cache = 18   # 1 = ~0.15Gb
+self.max_ram_cache = 80   # 1 = ~0.15Gb
+
+# vram + pinned ram [Stats] Tokens: 265 | Time: 151.09s | Speed: 1.75 t/s
+self.use_only_ssd = True  # if True - no cache [Stats] Tokens: 256 | Time: 239.72s | Speed: 1.07 t/s
+self.use_ram = False  # if False - only VRAM cache [Stats] Tokens: 422 | Time: 290.53s | Speed: 1.45 t/s
+```
+* You can run 80b parameters model on 6Gb VRAM with this config, used pinned gpu buffer for fast loading from ssd, used 4.6 Gb VRAM, 0.15Gb pinned RAM buffer, with more free VRAM you can use longer context
+
 <p align="center">
     <img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-Coder/qwen3_coder.png" width="400"/>
 </p>
