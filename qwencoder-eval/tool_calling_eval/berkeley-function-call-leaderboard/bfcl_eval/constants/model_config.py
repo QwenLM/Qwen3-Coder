@@ -29,6 +29,7 @@ from bfcl_eval.model_handler.api_inference.qwen import (
     QwenAgentThinkHandler,
     QwenAPIHandler,
 )
+from bfcl_eval.model_handler.api_inference.qwen3_coder import Qwen3CoderHandler
 from bfcl_eval.model_handler.api_inference.writer import WriterHandler
 from bfcl_eval.model_handler.api_inference.yi import YiHandler
 from bfcl_eval.model_handler.local_inference.arch import ArchHandler
