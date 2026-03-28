@@ -1,0 +1,55 @@
+# Development dependencies for Qwen3-Coder
+
+# Code formatting and linting
+black==24.3.0
+ruff==0.3.5
+isort==5.13.2
+
+# Testing
+pytest==8.1.1
+pytest-cov==5.0.0
+pytest-asyncio==0.23.6
+pytest-xdist==3.5.0  # For parallel testing
+
+# Pre-commit hooks
+pre-commit==3.7.0
+
+# Type checking
+mypy==1.9.0
+types-requests==2.31.0.20240311
+types-PyYAML==6.0.12.20240311
+
+# Documentation
+sphinx==7.2.6
+sphinx-rtd-theme==2.0.0
+myst-parser==2.0.0
+
+# Development tools
+ipython==8.22.2
+jupyter==1.0.0
+notebook==7.1.2
+
+# Debugging and profiling
+py-spy==0.3.14
+memory-profiler==0.61.0
+line-profiler==4.1.2
+
+# Code quality
+pylint==3.1.0
+flake8==7.0.0
+bandit==1.7.8  # Security linting
+
+# Build tools
+build==1.1.1
+twine==5.0.0
+wheel==0.43.0
+
+# Benchmarking
+pytest-benchmark==4.0.0
+
+# Model evaluation helpers
+scikit-learn==1.4.1.post1
+pandas==2.2.1
+matplotlib==3.8.3
+seaborn==0.13.2
+tqdm==4.66.2
