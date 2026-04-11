@@ -89,6 +89,23 @@ We are announcing Qwen3-Coder, our most agentic code model to date. **Qwen3-Code
 | Qwen3-Coder-480B-A35B-Instruct-FP8         | instruct     | 256k    | 🤗 [Hugging Face](https://huggingface.co/Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8) • 🤖 [ModelScope](https://modelscope.cn/models/Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8)                                       |
 | Qwen3-Coder-30B-A3B-Instruct-FP8         | instruct     | 256k    | 🤗 [Hugging Face](https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8) • 🤖 [ModelScope](https://modelscope.cn/models/Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8)                                       |
 
+### Local Deployment Requirements (Quick Reference)
+
+For local deployment planning, checkpoint size is the first hard constraint.
+The table below provides practical sizing guidance for common runtimes.
+
+| model name | HF checkpoint size (approx) | Suggested minimum GPU memory (serving) | Notes |
+|---|---:|---:|---|
+| Qwen3-Coder-Next | ~79.7 GB | >=96 GB total VRAM (BF16) | A single 80 GB card is usually not enough once KV cache + runtime overhead are included. |
+| Qwen3-Coder-Next-Base | ~79.7 GB | >=96 GB total VRAM (BF16) | Similar memory profile to `Qwen3-Coder-Next`. |
+| Qwen3-Coder-480B-A35B-Instruct | ~480.2 GB | >=640 GB total VRAM (multi-GPU) | Large MoE checkpoint, typically deployed with tensor/expert parallelism. |
+| Qwen3-Coder-30B-A3B-Instruct | ~30.5 GB | >=48 GB VRAM (BF16) or >=24 GB VRAM (FP8/GGUF) | Best entry point for local single-node deployment. |
+
+> [!NOTE]
+> These values are deployment-planning estimates and may vary by runtime
+> (`vLLM`, `SGLang`, `llama.cpp`), batch size, context length, KV cache policy,
+> and quantization setup.
+
 
 Detailed performance and introduction are shown in this <a href="https://qwenlm.github.io/blog/qwen3-coder-next/">📑 blog</a>.
 
