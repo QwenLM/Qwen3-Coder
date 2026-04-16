@@ -11,7 +11,7 @@
 <p align="center">
         💜 <a href="https://chat.qwen.ai/"><b>Qwen Chat</b></a>&nbsp&nbsp | &nbsp&nbsp🤗 <a href="https://huggingface.co/collections/Qwen/qwen3-coder-687fc861e53c939e52d52d10">Hugging Face</a>&nbsp&nbsp | &nbsp&nbsp🤖 <a href="https://modelscope.cn/organization/qwen">ModelScope</a>&nbsp&nbsp | &nbsp&nbsp 📑 <a href="https://qwenlm.github.io/blog/qwen3-coder-next/">Blog</a> &nbsp&nbsp ｜ &nbsp&nbsp📖 <a href="https://qwen.readthedocs.io/">Documentation</a>
 <br>
-🌍 <a href="https://huggingface.co/spaces/Qwen/Qwen3-Coder-WebDev">WebDev</a>&nbsp&nbsp | &nbsp&nbsp💬 <a href="https://github.com/QwenLM/Qwen/blob/main/assets/wechat.png">WeChat (微信)</a>&nbsp&nbsp | &nbsp&nbsp🫨 <a href="https://discord.gg/CV4E9rpNSD"> Discord</a>&nbsp&nbsp | &nbsp&nbsp 📄 <a href="https://github.com/QwenLM/Qwen3-Coder/blob/main/qwen3_coder_next_tech_report.pdf">Arxiv</a>&nbsp&nbsp | &nbsp&nbsp 👽 <a href="https://github.com/QwenLM/qwen-code">Qwen Code</a>
+🌍 <a href="https://huggingface.co/spaces/Qwen/Qwen3-Coder-WebDev">WebDev</a>&nbsp&nbsp | &nbsp&nbsp💬 <a href="https://github.com/QwenLM/Qwen/blob/main/assets/wechat.png">WeChat (微信)</a>&nbsp&nbsp | &nbsp&nbsp🫨 <a href="https://discord.gg/CV4E9rpNSD"> Discord</a>&nbsp&nbsp | &nbsp&nbsp 📄 <a href="https://arxiv.org/abs/2603.00729">Technical Report</a>&nbsp&nbsp | &nbsp&nbsp 📊 <a href="https://huggingface.co/Qwen/Qwen3-Coder-Next">Eval Results</a>&nbsp&nbsp | &nbsp&nbsp 👽 <a href="https://github.com/QwenLM/qwen-code">Qwen Code</a>
 </p>
 
 Visit our Hugging Face or ModelScope organization (click links above), search checkpoints with names starting with `Qwen3-Coder-`, and you will find all you need! Enjoy!
@@ -22,6 +22,12 @@ Visit our Hugging Face or ModelScope organization (click links above), search ch
   - [Introduction](#introduction)
     - [Key Features](#key-features)
   - [Basic Information](#basic-information)
+  - [Quickstart Paths](#quickstart-paths)
+    - [Local inference](#local-inference)
+    - [Coding agent usage](#coding-agent-usage)
+  - [Deployment Options and Recommended Runtimes](#deployment-options-and-recommended-runtimes)
+  - [Benchmark and Eval Resources](#benchmark-and-eval-resources)
+  - [Prompt Patterns for Common Coding Tasks](#prompt-patterns-for-common-coding-tasks)
   - [Quick Start](#quick-start)
     - [👉🏻 Chat with Qwen3-Coder](#-chat-with-qwen3-coder)
       - [Fill in the middle with Qwen3-Coder](#fill-in-the-middle-with-qwen3-coder)
@@ -73,7 +79,7 @@ We are announcing Qwen3-Coder, our most agentic code model to date. **Qwen3-Code
 
 > [!Important]
 > 
-> Qwen3-Coder function calling relies on our new tool parser in both **SGLang** and **vLLM** <a href="https://huggingface.co/Qwen/Qwen3-Coder-Next/blob/main/">here</a>.
+> Qwen3-Coder function calling relies on the new `qwen3_coder` tool parser in both **SGLang** and **vLLM**. Check the latest model card and runtime notes <a href="https://huggingface.co/Qwen/Qwen3-Coder-Next">here</a>.
 >
 > We updated both the special tokens and their corresponding token ids, in order to maintain consistency with Qwen3. Please make sure to use the new tokenizer.
 
@@ -91,6 +97,82 @@ We are announcing Qwen3-Coder, our most agentic code model to date. **Qwen3-Code
 
 
 Detailed performance and introduction are shown in this <a href="https://qwenlm.github.io/blog/qwen3-coder-next/">📑 blog</a>.
+
+## Quickstart Paths
+
+### Local inference
+
+| If you want to... | Recommended path | Model format | Notes |
+|:--|:--|:--|:--|
+| Try prompts, chat, or FIM in a Python script | Use the `transformers` example in [Quick Start](#quick-start) | `Qwen/Qwen3-Coder-Next` or another instruct checkpoint above | Best for debugging prompts and verifying tokenizer behavior |
+| Run a local desktop workflow | Use Ollama, LM Studio, MLX-LM, llama.cpp, or KTransformers | Prefer GGUF or the runtime's native format | Good fit for laptop workflows and local IDE integrations |
+| Experiment with smaller or cheaper models | Start with `Qwen3-Coder-30B-A3B-Instruct` before moving to the larger variants | Standard instruct checkpoints | Easier to fit on a single workstation than the flagship models |
+
+### Coding agent usage
+
+| Need | Start here | Why |
+|:--|:--|:--|
+| A native Qwen coding agent workflow | [Qwen Code](https://github.com/QwenLM/qwen-code) | Fastest path to a ready-made CLI coding agent |
+| An OpenAI-compatible endpoint for Cline, Claude Code, OpenHands/OpenClaw, or similar tools | Serve Qwen3-Coder with [vLLM](https://docs.vllm.ai/) or [SGLang](https://docs.sglang.ai/) | The `qwen3_coder` tool parser is designed for agentic tool calling |
+| Real prompt examples for agent loops | See [Use Cases](#use-cases) below | Includes Qwen Code, Claude Code, Cline, Browser Use Agent, and WebDev examples |
+
+## Deployment Options and Recommended Runtimes
+
+| Runtime | Best for | Recommendation | Notes |
+|:--|:--|:--|:--|
+| `transformers` (latest) | Single-node local experimentation | Start here first | Easiest path for prompt iteration, chat, and FIM |
+| `vLLM>=0.15.0` | OpenAI-compatible serving for coding agents | Recommended | Use `--enable-auto-tool-choice --tool-call-parser qwen3_coder` |
+| `SGLang>=0.5.8` | High-throughput OpenAI-compatible serving | Recommended | Use `--tool-call-parser qwen3_coder` |
+| Ollama / LM Studio / MLX-LM / llama.cpp / KTransformers | Local desktop inference | Good local option | Best when you want local app integration or laptop-friendly workflows |
+
+Deployment tips:
+
+- The default context length is 256K. If you hit OOM or the server fails to start, reduce it to something smaller such as `32768`.
+- Use the latest tokenizer and model files together; Qwen3-Coder updated special tokens to stay aligned with Qwen3.
+- For agent workloads, prefer `vLLM` or `SGLang` over ad hoc local scripts once you need stable OpenAI-compatible serving.
+
+## Benchmark and Eval Resources
+
+| Resource | What it covers |
+|:--|:--|
+| [Technical report](https://arxiv.org/abs/2603.00729) | Architecture, training recipe, and benchmark discussion |
+| [Launch blog](https://qwenlm.github.io/blog/qwen3-coder-next/) | Overview, headline benchmark results, and qualitative demos |
+| [Hugging Face model card](https://huggingface.co/Qwen/Qwen3-Coder-Next) | Current deployment notes, evaluation results, and linked leaderboards |
+| [Qwen3-Coder collection](https://huggingface.co/collections/Qwen/qwen3-coder-687fc861e53c939e52d52d10) | Model lineup, quantizations, and related checkpoints |
+
+## Prompt Patterns for Common Coding Tasks
+
+Use these as starting points when you want more consistent coding behavior from Qwen3-Coder:
+
+### 1. Bug fix with verification
+
+```text
+Reproduce the failure in <repo or command>, explain the root cause, make the smallest safe fix, and add or update tests before you stop.
+```
+
+### 2. Repo-level feature implementation
+
+```text
+Read the repository structure first, identify the files that need to change, implement <feature>, preserve existing APIs unless necessary, and summarize the final diff.
+```
+
+### 3. Refactor with guardrails
+
+```text
+Refactor <module> for readability and maintainability, keep behavior unchanged, and call out any assumptions before making risky architectural changes.
+```
+
+### 4. Code review or debugging
+
+```text
+Inspect <diff, stack trace, or failing test>, identify the most likely root causes, rank them by confidence, and propose the shortest path to validate the fix.
+```
+
+### 5. Fill in the middle
+
+```text
+<|fim_prefix|>...existing prefix...<|fim_suffix|>...existing suffix...<|fim_middle|>
+```
 
 ---
 
