@@ -14,6 +14,7 @@ from bfcl_eval.model_handler.api_inference.gorilla import GorillaHandler
 from bfcl_eval.model_handler.api_inference.grok import GrokHandler
 from bfcl_eval.model_handler.api_inference.ling import LingAPIHandler
 from bfcl_eval.model_handler.api_inference.mining import MiningHandler
+from bfcl_eval.model_handler.api_inference.minimax import MiniMaxHandler
 from bfcl_eval.model_handler.api_inference.mistral import MistralHandler
 from bfcl_eval.model_handler.api_inference.nemotron import NemotronHandler
 from bfcl_eval.model_handler.api_inference.nexus import NexusHandler
@@ -162,6 +163,30 @@ api_inference_model_map = {
         model_handler=DeepSeekAPIHandler,
         input_price=None,
         output_price=None,
+        is_fc_model=True,
+        underscore_to_dot=True,
+    ),
+    "MiniMax-M3": ModelConfig(
+        model_name="MiniMax-M3",
+        display_name="MiniMax-M3 (Prompt)",
+        url="https://platform.minimax.io/docs/api-reference/api-overview",
+        org="MiniMax",
+        license="Proprietary",
+        model_handler=MiniMaxHandler,
+        input_price=0.6,
+        output_price=2.4,
+        is_fc_model=False,
+        underscore_to_dot=False,
+    ),
+    "MiniMax-M3-FC": ModelConfig(
+        model_name="MiniMax-M3-FC",
+        display_name="MiniMax-M3 (FC)",
+        url="https://platform.minimax.io/docs/api-reference/api-overview",
+        org="MiniMax",
+        license="Proprietary",
+        model_handler=MiniMaxHandler,
+        input_price=0.6,
+        output_price=2.4,
         is_fc_model=True,
         underscore_to_dot=True,
     ),
