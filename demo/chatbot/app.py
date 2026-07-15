@@ -36,14 +36,41 @@ def history_to_messages(history: History, system: str) -> Messages:
         messages.append({'role': Role.ASSISTANT, 'content': h[1]})
     return messages
 
-
 def messages_to_history(messages: Messages) -> Tuple[str, History]:
-    assert messages[0]['role'] == Role.SYSTEM
-    system = messages[0]['content']
+    """
+    Safely convert messages into system prompt and chat history.
+
+    Fixes:
+    - Prevent crash if system message is missing
+    - Handles assistant-first edge cases
+    - Avoids fragile zip pairing
+    """
+
+    # Ensure system message exists
+    if not messages or messages[0]['role'] != Role.SYSTEM:
+        system = default_system
+        messages = [{'role': Role.SYSTEM, 'content': system}] + (messages or [])
+    else:
+        system = messages[0]['content']
+
     history = []
-    for q, r in zip(messages[1::2], messages[2::2]):
-        history.append([q['content'], r['content']])
+    user_msg = None
+
+    # Safely reconstruct conversation
+    for msg in messages[1:]:
+        role = msg.get("role")
+        content = msg.get("content", "")
+
+        if role == Role.USER:
+            user_msg = content
+
+        elif role == Role.ASSISTANT:
+            if user_msg is not None:
+                history.append([user_msg, content])
+                user_msg = None
+
     return system, history
+
 
 
 def model_chat(query: Optional[str], history: Optional[History], system: str,
