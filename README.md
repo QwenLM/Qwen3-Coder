@@ -382,11 +382,11 @@ Deliverables:
 If you find our work helpful, feel free to give us a cite.
 
 ```bibtex
-@techreport{qwen_qwen3_coder_next_tech_report,
-  title        = {Qwen3-Coder-Next Technical Report},
-  author       = {{Qwen Team}},
-  url          = {https://github.com/QwenLM/Qwen3-Coder/blob/main/qwen3_coder_next_tech_report.pdf},
-  note         = {Accessed: 2026-02-03}
+@article{Qwen3-Coder-Next,
+    title={Qwen3-Coder-Next Technical Report},
+    author={Ruisheng Cao and Mouxiang Chen and Jiawei Chen and Zeyu Cui and Yunlong Feng and Binyuan Hui and Yuheng Jing and Kaixin Li and Mingze Li and Junyang Lin and Zeyao Ma and Kashun Shum and Xuwu Wang and Jinxi Wei and Jiaxi Yang and Jiajun Zhang and Lei Zhang and Zongmeng Zhang and Wenting Zhao and Fan Zhou},
+    journal={arXiv preprint arXiv:2603.00729},
+    year={2026},
 }
 ```
 
