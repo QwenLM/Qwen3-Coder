@@ -125,7 +125,7 @@ def get_cost_latency_info(model_name, cost_data, latency_data):
             cost = round(cost, 2)
 
     # For local-hosted models, we calculate the total GPU cost by summing all latencies and multiplying by the hourly GPU price.
-    elif not model_config.pricing_tiers and len(latency_data["data"]) > 0:
+    elif len(latency_data["data"]) > 0:
         total_latency_seconds = sum(latency_data["data"])
         total_latency_hours = total_latency_seconds / 3600
 

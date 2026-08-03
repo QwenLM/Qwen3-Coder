@@ -78,17 +78,6 @@ from bfcl_eval.model_handler.local_inference.think_agent import ThinkAgentHandle
 # -----------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class TokenPricingTier:
-    service_tier: str
-    input_price: float
-    output_price: float
-    cache_read_price: Optional[float] = None
-    cache_write_price: Optional[float] = None
-    input_tokens_lte: Optional[int] = None
-    input_tokens_gt: Optional[int] = None
-
-
 @dataclass
 class ModelConfig:
     """
@@ -106,7 +95,6 @@ class ModelConfig:
         context_window (Optional[int]): Maximum context window in tokens when known.
         input_modalities (tuple[str, ...]): Input modalities accepted by the model.
         thinking_modes (tuple[str, ...]): Thinking modes exposed by the provider.
-        pricing_tiers (tuple[TokenPricingTier, ...]): Structured per-token prices for models with tiered billing.
         is_fc_model (bool): True if this model is used in Function-Calling mode, otherwise False for Prompt-based mode.
         underscore_to_dot (bool): True if model does not support '.' in function names, in which case we will replace '.' with '_'. Currently this only matters for checker.  TODO: We should let the tool compilation step also take this into account.
 
@@ -120,61 +108,18 @@ class ModelConfig:
 
     model_handler: str
 
-    # Flat prices are in USD per million tokens; tiered and open source models use None.
+    # Prices are in USD per million tokens; open source models have None
     input_price: Optional[float] = None
     output_price: Optional[float] = None
     context_window: Optional[int] = None
     input_modalities: tuple[str, ...] = ("text",)
     thinking_modes: tuple[str, ...] = ()
-    pricing_tiers: tuple[TokenPricingTier, ...] = ()
 
     # True if the model is in function-calling mode, False if in prompt mode
     is_fc_model: bool = True
 
     # True if this model does not allow '.' in function names
     underscore_to_dot: bool = False
-
-
-MINIMAX_M3_PRICING = (
-    TokenPricingTier(
-        service_tier="standard",
-        input_tokens_lte=512000,
-        input_price=0.3,
-        output_price=1.2,
-        cache_read_price=0.06,
-    ),
-    TokenPricingTier(
-        service_tier="standard",
-        input_tokens_gt=512000,
-        input_price=0.6,
-        output_price=2.4,
-        cache_read_price=0.12,
-    ),
-    TokenPricingTier(
-        service_tier="priority",
-        input_tokens_lte=512000,
-        input_price=0.45,
-        output_price=1.8,
-        cache_read_price=0.09,
-    ),
-    TokenPricingTier(
-        service_tier="priority",
-        input_tokens_gt=512000,
-        input_price=0.9,
-        output_price=3.6,
-        cache_read_price=0.18,
-    ),
-)
-
-MINIMAX_M27_PRICING = (
-    TokenPricingTier(
-        service_tier="standard",
-        input_price=0.3,
-        output_price=1.2,
-        cache_read_price=0.06,
-        cache_write_price=0.375,
-    ),
-)
 
 
 # Inference through API calls
@@ -234,12 +179,11 @@ api_inference_model_map = {
         org="MiniMax",
         license="Proprietary",
         model_handler=MiniMaxHandler,
-        input_price=None,
-        output_price=None,
+        input_price=0.6,
+        output_price=2.4,
         context_window=1000000,
         input_modalities=("text", "image", "video"),
         thinking_modes=("adaptive", "disabled"),
-        pricing_tiers=MINIMAX_M3_PRICING,
         is_fc_model=False,
         underscore_to_dot=False,
     ),
@@ -250,12 +194,11 @@ api_inference_model_map = {
         org="MiniMax",
         license="Proprietary",
         model_handler=MiniMaxHandler,
-        input_price=None,
-        output_price=None,
+        input_price=0.6,
+        output_price=2.4,
         context_window=1000000,
         input_modalities=("text", "image", "video"),
         thinking_modes=("adaptive", "disabled"),
-        pricing_tiers=MINIMAX_M3_PRICING,
         is_fc_model=True,
         underscore_to_dot=True,
     ),
@@ -271,7 +214,6 @@ api_inference_model_map = {
         context_window=204800,
         input_modalities=("text",),
         thinking_modes=("always_on",),
-        pricing_tiers=MINIMAX_M27_PRICING,
         is_fc_model=False,
         underscore_to_dot=False,
     ),
@@ -287,7 +229,6 @@ api_inference_model_map = {
         context_window=204800,
         input_modalities=("text",),
         thinking_modes=("always_on",),
-        pricing_tiers=MINIMAX_M27_PRICING,
         is_fc_model=True,
         underscore_to_dot=True,
     ),
