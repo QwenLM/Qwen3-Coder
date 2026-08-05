@@ -14,6 +14,7 @@ from bfcl_eval.model_handler.api_inference.gorilla import GorillaHandler
 from bfcl_eval.model_handler.api_inference.grok import GrokHandler
 from bfcl_eval.model_handler.api_inference.ling import LingAPIHandler
 from bfcl_eval.model_handler.api_inference.mining import MiningHandler
+from bfcl_eval.model_handler.api_inference.minimax import MiniMaxHandler
 from bfcl_eval.model_handler.api_inference.mistral import MistralHandler
 from bfcl_eval.model_handler.api_inference.nemotron import NemotronHandler
 from bfcl_eval.model_handler.api_inference.nexus import NexusHandler
@@ -89,8 +90,11 @@ class ModelConfig:
         org (str): Organization providing the model.
         license (str): License under which the model is released.
         model_handler (str): Handler name for invoking the model.
-        input_price (Optional[float]): USD per million input tokens (None for open source models).
-        output_price (Optional[float]): USD per million output tokens (None for open source models).
+        input_price (Optional[float]): Flat USD price per million input tokens when applicable.
+        output_price (Optional[float]): Flat USD price per million output tokens when applicable.
+        context_window (Optional[int]): Maximum context window in tokens when known.
+        input_modalities (tuple[str, ...]): Input modalities accepted by the model.
+        thinking_modes (tuple[str, ...]): Thinking modes exposed by the provider.
         is_fc_model (bool): True if this model is used in Function-Calling mode, otherwise False for Prompt-based mode.
         underscore_to_dot (bool): True if model does not support '.' in function names, in which case we will replace '.' with '_'. Currently this only matters for checker.  TODO: We should let the tool compilation step also take this into account.
 
@@ -107,6 +111,9 @@ class ModelConfig:
     # Prices are in USD per million tokens; open source models have None
     input_price: Optional[float] = None
     output_price: Optional[float] = None
+    context_window: Optional[int] = None
+    input_modalities: tuple[str, ...] = ("text",)
+    thinking_modes: tuple[str, ...] = ()
 
     # True if the model is in function-calling mode, False if in prompt mode
     is_fc_model: bool = True
@@ -162,6 +169,66 @@ api_inference_model_map = {
         model_handler=DeepSeekAPIHandler,
         input_price=None,
         output_price=None,
+        is_fc_model=True,
+        underscore_to_dot=True,
+    ),
+    "MiniMax-M3": ModelConfig(
+        model_name="MiniMax-M3",
+        display_name="MiniMax-M3 (Prompt)",
+        url="https://platform.minimax.io/docs/guides/models-intro",
+        org="MiniMax",
+        license="Proprietary",
+        model_handler=MiniMaxHandler,
+        input_price=0.6,
+        output_price=2.4,
+        context_window=1000000,
+        input_modalities=("text", "image", "video"),
+        thinking_modes=("adaptive", "disabled"),
+        is_fc_model=False,
+        underscore_to_dot=False,
+    ),
+    "MiniMax-M3-FC": ModelConfig(
+        model_name="MiniMax-M3",
+        display_name="MiniMax-M3 (FC)",
+        url="https://platform.minimax.io/docs/guides/models-intro",
+        org="MiniMax",
+        license="Proprietary",
+        model_handler=MiniMaxHandler,
+        input_price=0.6,
+        output_price=2.4,
+        context_window=1000000,
+        input_modalities=("text", "image", "video"),
+        thinking_modes=("adaptive", "disabled"),
+        is_fc_model=True,
+        underscore_to_dot=True,
+    ),
+    "MiniMax-M2.7": ModelConfig(
+        model_name="MiniMax-M2.7",
+        display_name="MiniMax-M2.7 (Prompt)",
+        url="https://platform.minimax.io/docs/guides/models-intro",
+        org="MiniMax",
+        license="Proprietary",
+        model_handler=MiniMaxHandler,
+        input_price=0.3,
+        output_price=1.2,
+        context_window=204800,
+        input_modalities=("text",),
+        thinking_modes=("always_on",),
+        is_fc_model=False,
+        underscore_to_dot=False,
+    ),
+    "MiniMax-M2.7-FC": ModelConfig(
+        model_name="MiniMax-M2.7",
+        display_name="MiniMax-M2.7 (FC)",
+        url="https://platform.minimax.io/docs/guides/models-intro",
+        org="MiniMax",
+        license="Proprietary",
+        model_handler=MiniMaxHandler,
+        input_price=0.3,
+        output_price=1.2,
+        context_window=204800,
+        input_modalities=("text",),
+        thinking_modes=("always_on",),
         is_fc_model=True,
         underscore_to_dot=True,
     ),

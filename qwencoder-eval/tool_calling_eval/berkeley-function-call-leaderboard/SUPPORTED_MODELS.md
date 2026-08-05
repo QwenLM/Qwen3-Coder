@@ -86,6 +86,10 @@ For model names containing `{...}`, multiple versions are available. For example
 | Llama-4-Scout-17B-16E-Instruct         | Function Calling | Self-hosted 💻 | meta-llama/Llama-4-Scout-17B-16E-Instruct-FC                |
 | MiniCPM3-4B                            | Prompt           | Self-hosted 💻 | openbmb/MiniCPM3-4B                                         |
 | MiniCPM3-4B-FC                         | Function Calling | Self-hosted 💻 | openbmb/MiniCPM3-4B-FC                                      |
+| MiniMax-M2.7                           | Function Calling | MiniMax        | MiniMax-M2.7-FC                                             |
+| MiniMax-M2.7                           | Prompt           | MiniMax        | MiniMax-M2.7                                                |
+| MiniMax-M3                             | Function Calling | MiniMax        | MiniMax-M3-FC                                               |
+| MiniMax-M3                             | Prompt           | MiniMax        | MiniMax-M3                                                  |
 | Ministral-8B-Instruct-2410             | Function Calling | Self-hosted 💻 | mistralai/Ministral-8B-Instruct-2410                        |
 | mistral-large-2411                     | Function Calling | Mistral AI     | mistral-large-2411-FC                                       |
 | mistral-large-2411                     | Prompt           | Mistral AI     | mistral-large-2411                                          |
@@ -133,6 +137,18 @@ For model names containing `{...}`, multiple versions are available. For example
 ---
 
 ## Additional Requirements for Certain Models
+
+- **MiniMax Models:**
+  Set `MINIMAX_API_KEY`, then choose `openai` or `anthropic` with `MINIMAX_API_FORMAT` and `global` or `cn` with `MINIMAX_REGION`. The defaults are `openai` and `global`.
+
+  | API format  | Region | Default base URL                     |
+  | ----------- | ------ | ------------------------------------ |
+  | OpenAI      | global | `https://api.minimax.io/v1`          |
+  | OpenAI      | cn     | `https://api.minimaxi.com/v1`        |
+  | Anthropic   | global | `https://api.minimax.io/anthropic`   |
+  | Anthropic   | cn     | `https://api.minimaxi.com/anthropic` |
+
+  `MINIMAX_BASE_URL` can override the selected default. Anthropic-compatible base URLs must end with `/anthropic`; the SDK appends `/v1/messages`. `MINIMAX_THINKING` accepts `adaptive` or `disabled` for MiniMax-M3, while MiniMax-M2.7 thinking is always on. `MINIMAX_SERVICE_TIER` accepts `standard` or `priority`, and `MINIMAX_MAX_TOKENS` controls the Anthropic-compatible response limit.
 
 - **Gemini Models:**
   For `Gemini` models, we use the Google AI Studio API for inference. Ensure you have set the `GOOGLE_API_KEY` in your `.env` file.
