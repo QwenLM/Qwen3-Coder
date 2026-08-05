@@ -53,8 +53,8 @@ def _get_extra_body(model_name: str) -> dict[str, Any]:
     if thinking:
         if thinking not in {"adaptive", "disabled"}:
             raise ValueError("MINIMAX_THINKING must be 'adaptive' or 'disabled'.")
-        if model_name.startswith("MiniMax-M2.7") and thinking == "disabled":
-            raise ValueError("MiniMax-M2.7 thinking cannot be disabled.")
+        if model_name.startswith("MiniMax-M2.7"):
+            raise ValueError("MiniMax-M2.7 thinking is always on and cannot be changed.")
         extra_body["thinking"] = {"type": thinking}
 
     service_tier = os.getenv("MINIMAX_SERVICE_TIER", "").lower()

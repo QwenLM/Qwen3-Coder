@@ -162,19 +162,21 @@ class MiniMaxHandlerTest(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         MiniMaxHandler("MiniMax-M3", 0.001)
 
-    def test_m27_thinking_cannot_be_disabled(self):
-        env = {
-            "MINIMAX_API_KEY": "test",
-            "MINIMAX_THINKING": "disabled",
-        }
-        with patch.dict(os.environ, env, clear=True):
-            handler = MiniMaxHandler("MiniMax-M2.7", 0.001)
-            with self.assertRaisesRegex(ValueError, "cannot be disabled"):
-                handler.generate_with_backoff(
-                    model="MiniMax-M2.7",
-                    messages=[{"role": "user", "content": "test"}],
-                )
-            handler.client.close()
+    def test_m27_thinking_cannot_be_changed(self):
+        for thinking in ("adaptive", "disabled"):
+            with self.subTest(thinking=thinking):
+                env = {
+                    "MINIMAX_API_KEY": "test",
+                    "MINIMAX_THINKING": thinking,
+                }
+                with patch.dict(os.environ, env, clear=True):
+                    handler = MiniMaxHandler("MiniMax-M2.7", 0.001)
+                    with self.assertRaisesRegex(ValueError, "always on"):
+                        handler.generate_with_backoff(
+                            model="MiniMax-M2.7",
+                            messages=[{"role": "user", "content": "test"}],
+                        )
+                    handler.client.close()
 
 
 if __name__ == "__main__":
